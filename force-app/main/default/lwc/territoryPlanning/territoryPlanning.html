@@ -1,0 +1,858 @@
+<!--
+  @description       : 
+  @author            : ChangeMeIn@UserSettingsUnder.SFDoc
+  @group             : 
+  @last modified on  : 05-21-2025
+  @last modified by  : ChangeMeIn@UserSettingsUnder.SFDoc
+-->
+<template>
+    <div
+        class="slds-page-header slds-page-header_record-home slds-p-horizontal_medium slds-p-vertical_small">
+        <div
+            class="slds-grid slds-wrap slds-grid_align-spread slds-grid_vertical-align-center">
+            <!-- Tiêu đề và biểu tượng -->
+            <div class="slds-media"> 
+                <!-- <div class="slds-media__figure">
+                    <span class="slds-icon_container slds-icon-standard-account"
+                        title="Role">
+                        <lightning-icon icon-name="standard:service_territory"
+                            alternative-text="Territory Icon"
+                            title="Territory" size="medium">
+                        </lightning-icon>
+                    </span>
+                </div>
+                <div class="slds-media__body">
+                    <p
+                        class="slds-text-title_bold slds-text-color_weak">Territory
+                        Planning</p>
+                    <h1 class="slds-text-heading_medium">Territory</h1>
+                </div> -->
+            </div>
+
+            <!-- Nút Add Role -->
+            <div>
+                <lightning-button 
+                    label={label.addTerritory} 
+                    title={label.addTerritory}
+                    onclick={handleAddTerritory}
+                    class="slds-m-left_x-small">
+                </lightning-button>
+            </div>
+        </div>
+    </div>
+
+    <template if:true={isModalOpen}>
+        <section role="dialog" tabindex="-1"
+            class="slds-modal slds-fade-in-open">
+            <div class="slds-modal__container">
+                <header style="background-color: #f4f6f9;"
+                    class="slds-modal__header">
+                    <button
+                        class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                        title="Close" onclick={closeModal}>
+                        <lightning-icon icon-name="utility:close"
+                            alternative-text="close"
+                            size="small"></lightning-icon>
+                        <span class="slds-assistive-text">Close</span>
+                    </button>
+                    <h2 class="slds-text-heading_medium">{label.addTerritory}</h2>
+                </header>
+                <div class="slds-modal__content slds-p-around_medium">
+                    <div class="slds-grid slds-grid_vertical">
+                        <div class="slds-col">
+                            <lightning-input type="text" label={label.territoryName}
+                                onchange={handleInputChange}></lightning-input>
+                        </div>
+                        <div class="slds-col">
+                            <div class="slds-col">
+                                <c-custom-lookup
+                                    label={label.user}
+                                    icon-name="standard:user"
+                                    placeholder={label.chooseUser}
+                                    options={userOptions}
+                                    s-object-api-name="User"
+                                    onlookupupdate={handleReportsToChange}>
+                                </c-custom-lookup>
+                                
+                            </div>
+                        </div>
+                        <div class="slds-col">
+                            <c-custom-lookup
+                                label={label.salesPlan}
+                                icon-name="standard:record_lookup"
+                                placeholder={label.chooseSalesPlan}
+                                s-object-api-name="Master_Data__c"
+                                record-id={recordId}
+                                onlookupupdate={handleSalesPlanChange}
+                                disabled="true">
+                            </c-custom-lookup>
+                        </div>
+                        <div class="slds-col">
+                            <c-custom-lookup
+                                label={label.region}
+                                icon-name="standard:record_lookup"
+                                placeholder={label.chooseRegion}
+                                s-object-api-name="Master_Data__c"
+                                s-record-type="Region"
+                                onlookupupdate={handleRegionChange}>
+                            </c-custom-lookup>
+                        </div>
+                        <div class="slds-col">
+                            <c-custom-lookup
+                                label={label.territory}
+                                icon-name="standard:record_lookup"
+                                placeholder={label.chooseTerritory}
+                                options={territoryOptions}
+                                s-object-api-name="Master_Data__c"
+                                s-record-type="Territory"
+                                s-record-sales-plan ={selectedSalesPlan}
+                                onlookupupdate={handleTerritoryChange}>
+                            </c-custom-lookup>
+                        </div>
+                        <div class="slds-col">
+                            <lightning-input type="text" label={label.color}
+                                placeholder={label.enterColor}
+                                onchange={handleInputChange}></lightning-input>
+                        </div>
+                        <div class="slds-col" style="margin-top: 10px;">
+                            <lightning-input type="checkbox" label={label.addCustomerManually}
+                                onchange={handleCheckboxChange}></lightning-input>
+                        </div>
+                    </div>
+
+                </div>
+                <footer class="slds-modal__footer">
+                    <button class="slds-button slds-button_neutral"
+                        onclick={handleSaveOrUpdateTerritory}>{label.save}</button>
+                    <button class="slds-button slds-button_neutral"
+                        onclick={closeModal}>{label.cancel}</button>
+                </footer>
+            </div>
+        </section>
+        <div class="slds-backdrop slds-backdrop_open"></div>
+    </template>
+
+    <lightning-card>
+        <!-- table dạng tree grid -->
+        <table aria-multiselectable="true"
+            class="slds-table slds-table_bordered slds-table_edit slds-table_resizable-cols slds-tree slds-table_tree plan_scratchpad"
+            role="treegrid" aria-label="Tree grid">
+            <thead>
+                <tr>
+                    <th scope="col" style="width: 25%;">{label.territoryName}</th>
+                    <th scope="col" style="width: 10%;">{label.user}</th>
+                    <th scope="col" style="width: 10%;">{label.vehicleCompanyPartner}</th>
+                    <th scope="col" style="width: 10%;">{label.dealer}</th>
+                    <th scope="col" style="width: 10%;">{label.projectPartner}</th>
+                    <th scope="col" style="width: 25%;">{label.minQuota}</th>
+                    <th scope="col" style="width: 5%;"></th>
+                </tr>
+            </thead>
+
+            <tbody>
+                <template for:each={lstTerritory} for:item="row">
+                    <tr key={row.id} aria-level={row.level}
+                        aria-posinset={row.position}>
+                        <td class="slds-tree__item" data-label="label"
+                            scope="row">
+                            <template if:true={row.isChevronClick}>
+                                <button
+                                    class="slds-button slds-button_icon slds-button_icon-x-small slds-m-right_x-small slds-is-disabled no-border"
+                                    aria-hidden="false" tabindex="0"
+                                    data-id={row.id}
+                                    onclick={handleChevronClick}>
+                                    <lightning-icon
+                                        icon-name={row.chevronIcon}
+                                        alternative-text="chevronright"
+                                        title="chevronright"
+                                        size="x-small">
+                                    </lightning-icon>
+                                </button>
+                            </template>  
+                            <template if:false={row.isChevronClick}>
+                                <span class="slds-m-right_x-small" style="width: 1.2rem; display: inline-block;"></span>
+                            </template>                          
+                            <div class="slds-truncate" title={row.name}>
+                                <a href="javascript:void(0);" data-id={row.id} onclick={handleNavigateToRecord}>
+                                    {row.name}
+                                </a>
+                            </div>
+                        </td>
+                        <td scope="col">{row.owner}</td>
+                        <td scope="col">{row.totalVehicleCompanyPartner}</td>
+                        <td scope="col">{row.totalDealer}</td>
+                        <td scope="col">{row.totalProjectPartner}</td>
+                        <td scope="col"><lightning-formatted-number value={row.minQuota}></lightning-formatted-number></td>
+                        <td>
+                            <template if:true={row.isChil}>
+                                <div class="custom-dropdown" key={row.id}>
+                                    <button class="dropdown-button" data-id={row.id}
+                                        onclick={toggleDropdown}
+                                        title="Show More">
+                                        <lightning-icon icon-name="utility:down"
+                                            size="xx-small"></lightning-icon>
+                                        <span class="slds-assistive-text">Show More</span>
+                                    </button>
+                                    <template if:true={row.isOpen}>
+                                        <div class="dropdown-menu">
+                                            <ul class="slds-dropdown__list"
+                                                role="menu" aria-label="Show More">
+                                                <li class="slds-dropdown__item"
+                                                    role="presentation"
+                                                    data-action="edit" 
+                                                    data-id={row.id}
+                                                    onclick={handleEditOpen}>
+                                                    <a href="#" role="menuitem">{label.edit}</a>
+                                                </li>
+                                                <!-- <li class="slds-dropdown__item"
+                                                    role="presentation"
+                                                    data-action="assignment"
+                                                    data-id={row.id}
+                                                    onclick={handleOpenTerritoryAssignment}>
+                                                    <a href="#" role="menuitem">Assignment</a>
+                                                </li> -->
+                                                <li class="slds-dropdown__item"
+                                                    role="presentation"
+                                                    data-action="setMinQuota" 
+                                                    data-id={row.id}
+                                                    onclick={handleSetMinQuota}>
+                                                    <a href="#" role="menuitem">{label.minQuota}</a>
+                                                </li>
+                                                <li class="slds-dropdown__item"
+                                                    role="presentation"
+                                                    data-action="rules"
+                                                    data-id={row.id}
+                                                    onclick={handleOpenRules}>
+                                                    <a href="#" role="menuitem">{label.assignment}</a>
+                                                </li>
+                                                <li class="slds-dropdown__item"
+                                                    role="presentation"
+                                                    data-action="delete"
+                                                    data-id={row.id}
+                                                    onclick={handleDeleteOpen}>
+                                                    <a href="#" role="menuitem">{label.delete}</a>
+                                                </li>
+                                            </ul>
+                                        </div>
+                                    </template>
+                                </div>
+                            </template>
+                        </td>
+                    </tr>
+                    <template if:true={row.expanded}>
+                        <template for:each={row._children} for:item="child">
+                            <tr key={child.id} aria-level={child.level}
+                                aria-posinset={child.position}>
+                                <td class="slds-tree__item" data-label="label"
+                                    scope="row">
+                                    <template if:true={child.isChevronClick}>
+                                        <button
+                                            class="slds-button slds-button_icon slds-button_icon-x-small slds-m-right_x-small slds-is-disabled no-border"
+                                            aria-hidden="false" tabindex="0"
+                                            data-id={child.id}
+                                            onclick={handleChevronClick}>
+                                            <lightning-icon
+                                                icon-name={child.chevronIcon}
+                                                alternative-text="chevronright"
+                                                title="chevronright"
+                                                size="x-small">
+                                            </lightning-icon>
+                                        </button>
+                                    </template>
+                                    <template if:false={child.isChevronClick}>
+                                        <span class="slds-m-right_x-small" style="width: 1.2rem; display: inline-block;"></span>
+                                    </template>
+                                    <div class="slds-truncate" title={child.name}>
+                                        <a href="javascript:void(0);" data-id={child.id} onclick={handleNavigateToRecord}>
+                                            {child.name}
+                                        </a>
+                                    </div>
+                                </td>
+                                <td scope="col">{child.owner}</td>
+                                <td scope="col">{child.totalVehicleCompanyPartner}</td>
+                                <td scope="col">{child.totalDealer}</td>
+                                <td scope="col">{child.totalProjectPartner}</td>
+                                <td scope="col"><lightning-formatted-number value={child.minQuota}></lightning-formatted-number></td>
+                                <td>
+                                    <template if:true={child.isChil}>
+                                        <div class="custom-dropdown" key={child.id}>
+                                            <button class="dropdown-button"
+                                                data-id={child.id}
+                                                onclick={toggleDropdown}
+                                                title="Show More">
+                                                <lightning-icon
+                                                    icon-name="utility:down"
+                                                    size="xx-small"></lightning-icon>
+                                                <span
+                                                    class="slds-assistive-text">Show More</span>
+                                            </button>
+                                            <template if:true={child.isOpen}>
+                                                <div class="dropdown-menu">
+                                                    <ul class="slds-dropdown__list"
+                                                        role="menu"
+                                                        aria-label="Show More">
+                                                        <li
+                                                            class="slds-dropdown__item"
+                                                            role="presentation"
+                                                            data-action="edit" 
+                                                            data-id={child.id}
+                                                            onclick={handleEditOpen}>
+                                                            <a href="#" role="menuitem">{label.edit}</a>
+                                                        </li>
+                                                        <!-- <li
+                                                            class="slds-dropdown__item"
+                                                            role="presentation"
+                                                            data-action="assignment"
+                                                            data-id={child.id}
+                                                            onclick={handleOpenTerritoryAssignment}>
+                                                            <a href="#" role="menuitem">Assignment</a>
+                                                        </li> -->
+                                                        <li
+                                                            class="slds-dropdown__item"
+                                                            role="presentation"
+                                                            data-action="setMinQuota"
+                                                            data-id={child.id}
+                                                            onclick={handleSetMinQuota}>
+                                                            <a href="#" role="menuitem">{label.minQuota}</a>
+                                                        </li>
+    
+                                                        <li
+                                                            class="slds-dropdown__item"
+                                                            role="presentation"
+                                                            data-action="rules"
+                                                            data-id={child.id}
+                                                            onclick={handleOpenRules}>
+                                                            <a href="#" role="menuitem">{label.assignment}</a>
+                                                        </li>
+    
+                                                        <li
+                                                            class="slds-dropdown__item"
+                                                            role="presentation"
+                                                            data-action="delete"
+                                                            data-id={child.id}
+                                                            onclick={handleDeleteOpen}>
+                                                            <a href="#" role="menuitem">{label.delete}</a>
+                                                        </li>
+                                                    </ul>
+                                                </div>
+                                            </template>
+                                        </div>
+                                    </template>
+                                </td>
+                            </tr>
+                            <template if:true={child.expanded}>
+                                <template for:each={child._children}
+                                    for:item="child_two">
+                                    <tr key={child_two.id}
+                                        aria-level={child_two.level}
+                                        aria-posinset={child_two.position}>
+                                        <td class="slds-tree__item"
+                                            data-label="label" scope="row">
+                                            <template if:true={child_two.isChevronClick}>
+                                                <button
+                                                    class="slds-button slds-button_icon slds-button_icon-x-small slds-m-right_x-small slds-is-disabled no-border"
+                                                    aria-hidden="false" tabindex="0"
+                                                    data-id={child_two.id}
+                                                    onclick={handleChevronClick}>
+                                                    <lightning-icon
+                                                        icon-name={child_two.chevronIcon}
+                                                        alternative-text="chevronright"
+                                                        title="chevronright"
+                                                        size="x-small">
+                                                    </lightning-icon>
+                                                </button>
+                                            </template>
+                                            <template if:false={child_two.isChevronClick}>
+                                                <span class="slds-m-right_x-small" style="width: 1.2rem; display: inline-block;"></span>
+                                            </template>
+                                            <div class="slds-truncate" title={child_two.name}>
+                                                <a href="javascript:void(0);" data-id={child_two.id} onclick={handleNavigateToRecord}>
+                                                    {child_two.name}
+                                                </a>
+                                            </div>
+                                        </td>
+                                        <td scope="col">{child_two.owner}</td>
+                                        <td scope="col">{child_two.totalProjectPartner}</td>
+                                        <td scope="col">{child_two.totalDealer}</td>
+                                        <td scope="col">{child_two.totalVehicleCompanyPartner}</td>
+                                       <td scope="col"><lightning-formatted-number value={child_two.minQuota}></lightning-formatted-number></td>
+                                        <td>
+                                            <template if:true={child_two.isChil}>
+                                                <div class="custom-dropdown"
+                                                    key={child_two.id}>
+                                                    <button class="dropdown-button"
+                                                        data-id={child_two.id}
+                                                        onclick={toggleDropdown}
+                                                        title="Show More">
+                                                        <lightning-icon
+                                                            icon-name="utility:down"
+                                                            size="xx-small"></lightning-icon>
+                                                        <span class="slds-assistive-text">Show More</span>
+                                                    </button>
+                                                    <template
+                                                        if:true={child_two.isOpen}>
+                                                        <div class="dropdown-menu">
+                                                            <ul
+                                                                class="slds-dropdown__list"
+                                                                role="menu"
+                                                                aria-label="Show More">
+                                                                <li
+                                                                    class="slds-dropdown__item"
+                                                                    role="presentation"
+                                                                    data-action="edit" 
+                                                                    data-id={child_two.id}
+                                                                    onclick={handleEditOpen}>
+                                                                    <a href="#" role="menuitem">Edit</a>
+                                                                </li>
+                                                                <!-- <li
+                                                                    class="slds-dropdown__item"
+                                                                    role="presentation"
+                                                                    data-action="assignment"
+                                                                    data-id={child_two.id}
+                                                                    onclick={handleOpenTerritoryAssignment}>
+                                                                    <a href="#" role="menuitem">Assignment</a>
+                                                                </li> -->
+                                                                <li
+                                                                    class="slds-dropdown__item"
+                                                                    role="presentation"
+                                                                    data-action="setMinQuota" 
+                                                                    data-id={child_two.id}
+                                                                    onclick={handleSetMinQuota}>
+                                                                    <a href="#" role="menuitem">Min Quota</a>
+                                                                </li>
+
+                                                                <li
+                                                                    class="slds-dropdown__item"
+                                                                    role="presentation"
+                                                                    data-action="province/City"
+                                                                    onclick={handleOpenProvince}>
+                                                                    <a href="#" role="menuitem">Province/City</a>
+                                                                </li>
+                                                                <li
+                                                                    class="slds-dropdown__item"
+                                                                    role="presentation"
+                                                                    data-action="rules"
+                                                                    data-id={child_two.id}
+                                                                    onclick={handleOpenRules}>
+                                                                    <a href="#" role="menuitem">Assignment</a>
+                                                                </li>
+
+                                                                <li
+                                                                    class="slds-dropdown__item"
+                                                                    role="presentation"
+                                                                    data-action="delete"
+                                                                    data-id={child_two.id}
+                                                                    onclick={handleDeleteOpen}>
+                                                                    <a href="#" role="menuitem">Delete</a>
+                                                                </li>
+                                                            </ul>
+                                                        </div>
+                                                    </template>
+                                                </div>
+                                            </template>
+                                            
+
+                                        </td>
+                                    </tr>
+                                    <template if:true={child_two.expanded}>
+                                        <template for:each={child_two._children}
+                                            for:item="child_three">
+                                            <tr key={child_three.id}
+                                                aria-level={child_three.level}
+                                                aria-posinset={child_three.position}>
+                                                <td class="slds-tree__item"
+                                                    data-label="label" scope="row">
+                                                    <template if:true={child_three.isChevronClick}>
+                                                        <button
+                                                            class="slds-button slds-button_icon slds-button_icon-x-small slds-m-right_x-small slds-is-disabled no-border"
+                                                            aria-hidden="false" tabindex="0"
+                                                            data-id={child_three.id}
+                                                            onclick={handleChevronClick}>
+                                                            <lightning-icon
+                                                                icon-name={child_three.chevronIcon}
+                                                                alternative-text="chevronright"
+                                                                title="chevronright"
+                                                                size="x-small">
+                                                            </lightning-icon>
+                                                        </button>
+                                                    </template>
+                                                    <template if:false={child_three.isChevronClick}>
+                                                        <span class="slds-m-right_x-small" style="width: 1.2rem; display: inline-block;"></span>
+                                                    </template>
+                                                    <div class="slds-truncate" title={child_three.name}>
+                                                        <a href="javascript:void(0);" data-id={child_three.id} onclick={handleNavigateToRecord}>
+                                                            {child_three.name}
+                                                        </a>
+                                                    </div>
+                                                </td>
+                                                <td scope="col">{child_three.owner}</td>
+                                                <td scope="col">{child_three.totalVehicleCompanyPartner}</td>
+                                                <td scope="col">{child_three.totalDealer}</td>
+                                                <td scope="col">{child_three.totalProjectPartner}</td>
+                                                <td scope="col"><lightning-formatted-number value={child_three.minQuota}></lightning-formatted-number></td>
+                                                <td>
+                                                    <template if:true={child_three.isChil}>
+                                                        <div class="custom-dropdown"
+                                                        key={child_three.id}>
+                                                        <button class="dropdown-button"
+                                                            data-id={child_three.id}
+                                                            onclick={toggleDropdown}
+                                                            title="Show More">
+                                                            <lightning-icon
+                                                                icon-name="utility:down"
+                                                                size="xx-small"></lightning-icon>
+                                                            <span class="slds-assistive-text">Show More</span>
+                                                        </button>
+                                                        <template
+                                                            if:true={child_three.isOpen}>
+                                                                <div class="dropdown-menu">
+                                                                    <ul
+                                                                        class="slds-dropdown__list"
+                                                                        role="menu"
+                                                                        aria-label="Show More">
+                                                                        <li
+                                                                            class="slds-dropdown__item"
+                                                                            role="presentation"
+                                                                            data-action="edit" 
+                                                                            data-id={child_three.id}
+                                                                            onclick={handleEditOpen}>
+                                                                            <a href="#" role="menuitem">Edit</a>
+                                                                        </li>
+                                                                        <!-- <li
+                                                                            class="slds-dropdown__item"
+                                                                            role="presentation"
+                                                                            data-action="assignment"
+                                                                            data-id={child_three.id}
+                                                                            onclick={handleOpenTerritoryAssignment}>
+                                                                            <a href="#" role="menuitem">Assignment</a>
+                                                                        </li> -->
+                                                                        <li
+                                                                            class="slds-dropdown__item"
+                                                                            role="presentation"
+                                                                            data-action="setMinQuota" 
+                                                                            data-id={child_three.id}
+                                                                            onclick={handleSetMinQuota}>
+                                                                            <a href="#" role="menuitem">Min Quota</a>
+                                                                        </li>
+            
+                                                                        <li
+                                                                            class="slds-dropdown__item"
+                                                                            role="presentation"
+                                                                            data-action="province/City"
+                                                                            onclick={handleOpenProvince}>
+                                                                            <a href="#" role="menuitem">Province/City</a>
+                                                                        </li>
+                                                                        <li
+                                                                            class="slds-dropdown__item"
+                                                                            role="presentation"
+                                                                            data-action="rules"
+                                                                            data-id={child_three.id}
+                                                                            onclick={handleOpenRules}>
+                                                                            <a href="#" role="menuitem">Assignment</a>
+                                                                        </li>
+            
+                                                                        <li
+                                                                            class="slds-dropdown__item"
+                                                                            role="presentation"
+                                                                            data-action="delete"
+                                                                            data-id={child_three.id}
+                                                                            onclick={handleDeleteOpen}>
+                                                                            <a href="#" role="menuitem">Delete</a>
+                                                                        </li>
+                                                                    </ul>
+                                                                </div>
+                                                            </template>
+                                                        </div>
+                                                    </template>
+                                                </td>
+                                            </tr>
+                                        </template>
+                                    </template>
+                                </template>
+                            </template>
+
+                        </template>
+                    </template>
+
+                    <!-- <c-custom-tree-grid key={row.id} row-data={row}
+                        onchevronclick={handleChevronClick}
+                        onnavigatetorecord={handleNavigateToRecord}
+                        oneditopen={handleEditOpen}
+                        onassignment={handleOpenTerritoryAssignment}
+                        onsetminquota={handleSetMinQuota}
+                        onopenrules={handleOpenRules}
+                        ondeleteopen={handleDeleteOpen}
+                        ontoggledropdown={toggleDropdown}>
+                    </c-custom-tree-grid> -->
+                </template>
+            </tbody>
+        </table>
+
+        <!-- Popup action Rules -->
+        <template if:true={isModalRuleOpen}>
+            <section role="dialog" tabindex="-1"
+                class="slds-modal slds-modal_large slds-fade-in-open">
+                <div class="slds-modal__container">
+                    <header class="slds-modal__header">
+                        <button
+                            class="slds-button slds-button_icon slds-modal__close"
+                            title="Close"
+                            onclick={closeRuleModal}>
+                            <lightning-icon icon-name="utility:close"
+                                alternative-text="Close"
+                                size="small"></lightning-icon>
+                        </button>
+                        <h2 class="slds-text-heading_medium">{label.assignmentRules}</h2>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium">
+                        <c-assignment-rule-management territory-id={selectedTerritoryId} onrefresh={handleRefresh} type='Assignment Rule'></c-assignment-rule-management>
+                    </div>
+                    <footer class="slds-modal__footer">
+                        <button class="slds-button slds-button_neutral"
+                            onclick={closeRuleModal}>{label.cancel}</button>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+
+        <!-- Popup action Edit -->
+        <template if:true={isModalEdit}>
+            <section role="dialog" tabindex="-1"
+                class="slds-modal slds-fade-in-open">
+                <div class="slds-modal__container">
+                    <header class="slds-modal__header">
+                        <button
+                            class="slds-button slds-button_icon slds-modal__close"
+                            title="Close"
+                            onclick={closeModal}>
+                            <lightning-icon icon-name="utility:close"
+                                alternative-text="Close"
+                                size="small"></lightning-icon>
+                        </button>
+                        <h2 class="slds-text-heading_medium">{label.editTerritory}</h2>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium">
+                        <div class="slds-grid slds-grid_vertical">
+                            <div class="slds-col">
+                                <lightning-input type="text"
+                                    label={label.territoryName} value={territoryName} 
+                                    onchange={handleInputChange}></lightning-input>
+                            </div>
+                            <div class="slds-col">
+                                <div class="slds-col">
+                                    <!-- <c-custom-lookup
+                                        label="Nhân viên phụ trách"
+                                        icon-name="standard:user"
+                                        placeholder="Chọn nhân viên phụ trách"
+                                        options={userOptions}
+                                        record-id={recordId}
+                                        selected-record-arr={selectedReportsTo}
+                                        onlookupupdate={handleReportsToChange}>
+                                    </c-custom-lookup> -->
+                                    <c-custom-lookup
+                                        label={label.user} 
+                                        icon-name="standard:user"
+                                        placeholder={label.chooseUser}  
+                                        options={userOptions}
+                                        s-object-api-name="User"
+                                        selected-record-arr={selectedReportsTo}
+                                        onlookupupdate={handleReportsToChange}>
+                                    </c-custom-lookup>
+                                    <!-- s-object-api-name="User" -->
+                                </div>
+                            </div>
+                            <div class="slds-col">
+                                <c-custom-lookup
+                                    label={label.salesPlan}
+                                    icon-name="standard:record_lookup"
+                                    placeholder={label.chooseSalesPlan}
+                                    s-object-api-name="Master_Data__c"
+                                    disabled="true"
+                                    selected-record-arr={selectedSalesPlan}
+                                    onlookupupdate={handleSalesPlanChange}>
+                                </c-custom-lookup>
+                            </div>
+                            <div class="slds-col">
+                                <c-custom-lookup
+                                    label={label.region}
+                                    icon-name="standard:record_lookup"
+                                    placeholder={label.chooseRegion}
+                                    s-object-api-name="Master_Data__c"
+                                    s-record-type="Region"
+                                    selected-record-arr={selectedRegion}
+                                    onlookupupdate={handleRegionChange}>
+                                </c-custom-lookup>
+                            </div>
+                            <div class="slds-col">
+                                <c-custom-lookup
+                                    label={label.territory}
+                                    icon-name="standard:record_lookup"
+                                    placeholder={label.chooseTerritory}
+                                    options={territoryOptions}
+                                    s-record-type="Territory"
+                                    s-object-api-name="Master_Data__c"
+                                    selected-record-arr={selectedTerritory}
+                                    s-record-sales-plan ={selectedSalesPlan}
+                                    onlookupupdate={handleTerritoryChange}>
+                                </c-custom-lookup>
+                                <!-- s-object-api-name="Territory__c" -->
+                            </div>
+                            <div class="slds-col">
+                                <lightning-input type="text" label={label.color}
+                                    placeholder={label.enterColor}
+                                    value={mapColor}
+                                    onchange={handleInputChange}></lightning-input>
+                            </div>
+                            <div class="slds-col">
+                                <lightning-input type="checkbox"
+                                    label={label.isCustomersManually} checked={addProvince}
+                                    onchange={handleCheckboxChange}></lightning-input>
+                            </div>
+                        </div>
+
+                    </div>
+                    <footer class="slds-modal__footer">
+                        <button class="slds-button slds-button_neutral"
+                            onclick={handleSaveOrUpdateTerritory}>{label.save}</button>
+                        <button class="slds-button slds-button_neutral"
+                            onclick={closeModal}>{label.cancel}</button>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+
+        <!-- Popup action Delete -->
+        <template if:true={isModalDelete}>
+            <section role="dialog" tabindex="-1"
+                class="slds-modal slds-fade-in-open">
+                <div class="slds-modal__container">
+                    <div class="slds-modal__content slds-p-around_medium">
+                        <p class="slds-text-heading_small">{label.areYouSureDelete}</p>
+                    </div>
+                    <div class="slds-modal__footer">
+                        <lightning-button label={label.delete} variant="destructive"
+                            onclick={confirmDeleteAddress}></lightning-button>
+                        <lightning-button label={label.cancel} variant="neutral"
+                            onclick={closeDelete}
+                            class="slds-m-left_small"></lightning-button>
+                    </div>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+
+        <!-- Popup action TerritoryAssignment -->
+        <template if:true={isModalTerritoryAssignmentOpen}>
+            <section role="dialog" tabindex="-1"
+                class="slds-modal slds-modal_large slds-fade-in-open">
+                <div class="slds-modal__container">
+                    <header class="slds-modal__header">
+                        <button
+                            class="slds-button slds-button_icon slds-modal__close"
+                            title="Close"
+                            onclick={closeModalTerritoryAssignment}>
+                            <lightning-icon icon-name="utility:close"
+                                alternative-text="Close"
+                                size="small"></lightning-icon>
+                        </button>
+                        <h2 class="slds-text-heading_medium">Territory Assignment</h2>
+                    </header>
+                    <div class="slds-modal__content slds-p-around_medium">
+                        <c-lwc-territory-assignment 
+                            record-id={recordId}
+                            territory-id={selectedTerritoryId}
+                            onrefresh={handleRefresh}>
+                        </c-lwc-territory-assignment>
+                    </div>
+                    <footer class="slds-modal__footer">
+                        <button class="slds-button slds-button_neutral"
+                            onclick={saveAssignmentModal}>{label.save}</button>
+                        <button class="slds-button slds-button_neutral"
+                            onclick={closeModalTerritoryAssignment}>{label.cancel}</button>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+        </template>
+
+        <!-- Popup action Province/City -->
+        <template if:true={isModalProvinceCity}>
+            <section role="dialog" tabindex="-1"
+                class="slds-modal slds-fade-in-open">
+                <div class="slds-modal__container">
+                    <header style="background-color: #f4f6f9;"
+                        class="slds-modal__header">
+                        <button
+                            class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                            title="Close" onclick={closeProvinceCity}>
+                            <lightning-icon icon-name="utility:close"
+                                alternative-text="close"
+                                size="small"></lightning-icon>
+                            <span class="slds-assistive-text">Close</span>
+                        </button>
+                        <h2 class="slds-text-heading_medium">Province/City</h2>
+                    </header>
+
+                    <div class="slds-modal__content slds-p-around_medium">
+                        <div class="slds-grid slds-grid_vertical">
+                            <div class="slds-col">
+                                <lightning-record-edit-form
+                                    object-api-name="Master_Data__c" id="Sales">
+                                    <lightning-input-field
+                                        field-name="Province_City__c"
+                                        onchange={handleProvinceSelection}
+                                        required> </lightning-input-field>
+                                </lightning-record-edit-form>
+                            </div>
+                        </div>
+                    </div>
+
+                    <footer class="slds-modal__footer">
+                        <button class="slds-button slds-button_neutral"
+                            onclick={handleSave}>{label.save}</button>
+                        <button class="slds-button slds-button_neutral"
+                            onclick={closeProvinceCity}>{label.cancel}</button>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+
+        </template>
+
+        <!-- Popup action SetMinQuota -->
+        <template if:true={isModalSetMinQuota}>
+            <section role="dialog" tabindex="-1"
+                class="slds-modal slds-fade-in-open slds-modal_large">
+                <div class="slds-modal__container">
+                    <header style="background-color: #f4f6f9;"
+                        class="slds-modal__header">
+                        <button
+                            class="slds-button slds-button_icon slds-modal__close slds-button_icon-inverse"
+                            title="Close" onclick={closeSetMinQuota}>
+                            <lightning-icon icon-name="utility:close"
+                                alternative-text="close"
+                                size="small"></lightning-icon>
+                            <span class="slds-assistive-text">Close</span>
+                        </button>
+                        <h2 class="slds-text-heading_medium">{label.setMinQuota}</h2>
+                    </header>
+
+                    <div class="slds-modal__content slds-p-around_medium">
+                        <c-lwc-set-min-quota territory-id={selectedTerritoryId}
+                            record-id={recordId}
+                            onrefresh={handleRefresh}></c-lwc-set-min-quota>
+                    </div>
+
+                    <footer class="slds-modal__footer">
+                        <button class="slds-button slds-button_neutral"
+                            onclick={closeSetMinQuota}>{label.cancel}</button>
+                    </footer>
+                </div>
+            </section>
+            <div class="slds-backdrop slds-backdrop_open"></div>
+
+        </template>
+    </lightning-card>
+</template>
